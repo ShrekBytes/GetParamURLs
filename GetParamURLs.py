@@ -71,6 +71,7 @@ def main():
     # Get the domain from command-line arguments
     domain = sys.argv[1]
     print("Domain:", domain)
+    print("This might take some time depending your target...")
 
     # Define filenames based on the domain
     gau_file = f"{domain}_gau.txt"
