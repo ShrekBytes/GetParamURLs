@@ -10,7 +10,6 @@ Here's the refined README with a table of contents added:
 - [Prerequisites](#prerequisites)
 - [Usage](#usage)
 - [Contributing](#contributing)
-- [Acknowledgements](#acknowledgements)
 - [License](#license)
 
 ## Features
@@ -49,11 +48,6 @@ Here's the refined README with a table of contents added:
 ## Contributing
 
 To contribute, fork the repository, make your changes, and submit a pull request to add features or improve existing ones. Your contributions are appreciated!
-
-## Acknowledgements
-
-- [gau](https://github.com/lc/gau)
-- [waybackurls](https://github.com/tomnomnom/waybackurls)
 
 ## License
 
