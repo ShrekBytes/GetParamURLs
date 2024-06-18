@@ -2,6 +2,8 @@
 
 GetParamURLs is a Python script for bug bounty hunters that `finds URLs with query parameters` using gau and waybackurls, filters out unwanted MIME types, and removes duplicates so that you can focus only on what is important.
 
+![screenshot](screenshot.png)
+
 ## Table of Contents
 
 - [Features](#features)
