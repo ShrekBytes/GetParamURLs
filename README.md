@@ -9,24 +9,32 @@
 - Removes URLs with unwanted MIME-type extensions
 - Eliminates duplicate links based on endpoints and parameters
 
-## Requirements
+**Prerequisites:**
 
-- Python 3.x
-- `gau` (Get All URLs)
-- `waybackurls`
+* Python 3.x
+* `gau` (Get All URLs) - Installation instructions can be found [here](https://github.com/lc/gau)
+* `waybackurls` - Installation instructions can be found [here](https://github.com/tomnomnom/waybackurls)
 
 ## Usage
 
 1. Clone the repository:
-   ```sh
-   git clone https://github.com/ShrekBytes/GetParamURLs.git
-   cd GetParamURLs
-   ```
-2. Run the script:
-   ```sh
-   python3 GetParamURLs.py example.com
-   ```
-   
+
+    ```sh
+    git clone https://github.com/ShrekBytes/GetParamURLs.git
+    ```
+
+2. Change into the repository directory:
+
+    ```sh
+    cd GetParamURLs
+    ```
+
+3. Run the script:
+
+    ```sh
+    python3 GetParamURLs.py example.com
+    ```
+
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
