@@ -35,24 +35,15 @@
     python3 GetParamURLs.py example.com
     ```
 
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
 ## Contributing
 
-1. Fork the repository.
-2. Create a new branch (`git checkout -b feature-branch`).
-3. Make your changes.
-4. Commit your changes (`git commit -am 'Add new feature'`).
-5. Push to the branch (`git push origin feature-branch`).
-6. Create a new Pull Request.
+To contribute, fork the repository, make your changes, and submit a pull request to add features or improve existing ones. Your contributions are appreciated!
 
 ## Acknowledgements
 
 - [gau](https://github.com/lc/gau)
 - [waybackurls](https://github.com/tomnomnom/waybackurls)
 
-## Contact
+## License
 
-For any issues or feature requests, please open an issue on GitHub.
+"License? Nah, who needs those bothersome regulations anyway? Feel free to do whatever you want with this code – use it as a doorstop, launch it into space, or frame it as a modern art masterpiece. Just don't blame me if things get a little wild!"
