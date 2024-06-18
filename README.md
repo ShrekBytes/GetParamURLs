@@ -16,6 +16,7 @@ GetParamURLs is a Python script for bug bounty hunters that `finds URLs with que
 - Filters URLs that contain query parameters
 - Removes URLs with unwanted MIME-type extensions
 - Eliminates duplicate links based on endpoints and parameters
+- Saves filtered juichy urls to domain.txt file
 
 ## Prerequisites
 
