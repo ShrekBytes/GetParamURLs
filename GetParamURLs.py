@@ -7,33 +7,60 @@ from urllib.parse import urlparse, parse_qs
 
 # Function to filter URLs with query parameters
 def filter_urls_with_params(input_file, output_file):
-    with open(input_file, 'r') as infile, open(output_file, 'w') as outfile:
+    with open(input_file, "r") as infile, open(output_file, "w") as outfile:
         for line in infile:
             url = line.strip()
             if urlparse(url).query:
-                outfile.write(url + '\n')
+                outfile.write(url + "\n")
 
 
 # Function to remove MIME files based on extensions
 def remove_mime_files(input_file, output_file):
-    mime_extensions = {'jpg', 'jpeg', 'png', 'gif', 'mp4', 'mov', 'avi', 'mkv', 'pdf', 'pptx', 'ppt', 'heic',
-                       'mp3', 'm4a', 'webp', 'eot', 'css', 'json', 'woff', 'woff2', 'ttf', 'svg', 'eof', 'js', 'docx',
-                       'key'}
-    pattern = r'\/([^\/?#]+)\.(%s)(\?[^\/]*$|\/[^\/]*$|#.*$|$)' % '|'.join(mime_extensions)
+    mime_extensions = {
+        "jpg",
+        "jpeg",
+        "png",
+        "gif",
+        "mp4",
+        "mov",
+        "avi",
+        "mkv",
+        "pdf",
+        "pptx",
+        "ppt",
+        "heic",
+        "mp3",
+        "m4a",
+        "webp",
+        "eot",
+        "css",
+        "json",
+        "woff",
+        "woff2",
+        "ttf",
+        "svg",
+        "eof",
+        "js",
+        "docx",
+        "key",
+    }
+    pattern = r"\/([^\/?#]+)\.(%s)(\?[^\/]*$|\/[^\/]*$|#.*$|$)" % "|".join(
+        mime_extensions
+    )
     regex = re.compile(pattern, re.IGNORECASE)
 
-    with open(input_file, 'r') as infile, open(output_file, 'w') as outfile:
+    with open(input_file, "r") as infile, open(output_file, "w") as outfile:
         for url in infile:
             url = url.strip()
             if not regex.search(url):
-                outfile.write(url + '\n')
+                outfile.write(url + "\n")
 
 
 # Function to remove duplicate links based on endpoint and parameters
 def remove_duplicates(input_file, output_file):
     seen = set()
     unique_links = []
-    with open(input_file, 'r') as infile:
+    with open(input_file, "r") as infile:
         for line in infile:
             url = line.strip()
             parsed_url = urlparse(url)
@@ -44,9 +71,9 @@ def remove_duplicates(input_file, output_file):
                 seen.add(key)
                 unique_links.append(url)
 
-    with open(output_file, 'w') as outfile:
+    with open(output_file, "w") as outfile:
         for link in unique_links:
-            outfile.write(link + '\n')
+            outfile.write(link + "\n")
 
 
 # Function to delete files
@@ -71,7 +98,7 @@ def main():
     # Get the domain from command-line arguments
     domain = sys.argv[1]
     print("Domain:", domain)
-    print("This might take some time depending your target...")
+    print("This may take some time(up to 30 minutes) depending on your target...")
 
     # Define filenames based on the domain
     gau_file = f"{domain}_gau.txt"
@@ -102,7 +129,11 @@ def main():
     remove_duplicates(no_mimes_file, output_file)
 
     # Delete intermediate files
-    delete_files(gau_file, waybackurls_file, merged_file, parameters_file, no_mimes_file)
+    print("Deleting intermediate files that were created during process...")
+    delete_files(
+        gau_file, waybackurls_file, merged_file, parameters_file, no_mimes_file
+    )
+    print(f"Parameter URLs are saved to {domain}.txt file.")
 
 
 # Entry point of the script
