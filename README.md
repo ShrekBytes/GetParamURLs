@@ -48,7 +48,7 @@ GetParamURLs is a Python script for bug bounty hunters that `finds URLs with que
 
 ## Contributing
 
-To contribute, fork the repository, make your changes, and submit a pull request to add features or improve existing ones. Your contributions are appreciated!
+Feel free to submit issues or pull requests for suggestions, improvements, or bug reports. Your contributions are appreciated!
 
 ## License
 
