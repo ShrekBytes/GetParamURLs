@@ -110,7 +110,7 @@ def main():
 
     # List of commands to be executed sequentially
     commands = [
-        f"gau --o {gau_file} {domain}",
+        f"gau --subs --o {gau_file} {domain}",
         f"waybackurls {domain} > {waybackurls_file}",
         f"cat {gau_file} {waybackurls_file} > {merged_file}",
     ]
