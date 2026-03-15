@@ -55,94 +55,202 @@ After collection, all URLs pass through a filtering pipeline: scope check → qu
 ### Required
 
 - **Python 3.10+**
-- **gau** — `go install github.com/lc/gau/v2/cmd/gau@latest` — [docs](https://github.com/lc/gau)
-- **waybackurls** — `go install github.com/tomnomnom/waybackurls@latest` — [docs](https://github.com/tomnomnom/waybackurls)
+- **gau** — [github.com/lc/gau](https://github.com/lc/gau)
+- **waybackurls** — [github.com/tomnomnom/waybackurls](https://github.com/tomnomnom/waybackurls)
 
 ### Recommended
 
-- **katana** — `go install github.com/projectdiscovery/katana/cmd/katana@latest` — [docs](https://github.com/projectdiscovery/katana)
-  Required for active crawling, JS parsing, and POST form extraction. Without it you get historical URLs only.
+- **katana** — [github.com/projectdiscovery/katana](https://github.com/projectdiscovery/katana)
+  Required for active crawling, JS parsing, and POST form extraction. Without it you only get historical URLs.
 
-### Optional
+### Optional but valuable
 
-- **gospider** — `go install github.com/jaeles-project/gospider@latest` — [docs](https://github.com/jaeles-project/gospider)
+- **gospider** — [github.com/jaeles-project/gospider](https://github.com/jaeles-project/gospider)
   Adds sitemap and robots.txt coverage.
-- **subjs** — `go install github.com/lc/subjs@latest` — [docs](https://github.com/lc/subjs)
+- **subjs** — [github.com/lc/subjs](https://github.com/lc/subjs)
   Discovers additional JS files for endpoint extraction.
-- **waymore** — `pip install waymore` — [docs](https://github.com/xnl-h4ck3r/waymore)
-  More thorough archive source than gau alone.
+- **waymore** — [github.com/xnl-h4ck3r/waymore](https://github.com/xnl-h4ck3r/waymore)
+  More thorough archive coverage than gau alone.
 
-The script checks for all tools on startup and tells you exactly what's missing and how to install it. Missing optional tools are skipped gracefully — the pipeline still runs with whatever is available.
+The script checks all tools on startup and tells you exactly what is missing and how to install it. Missing optional tools are skipped gracefully — the pipeline runs with whatever is available.
 
 ---
 
 ## Installation
 
-1. Clone the repository:
-   ```sh
-   git clone https://github.com/ShrekBytes/GetParamURLs.git
-   ```
+### 1. Install Go
 
-2. Change into the directory:
-   ```sh
-   cd GetParamURLs
-   ```
+All the external tools are written in Go. If you don't have Go installed:
 
-3. Install required Go tools (needs [Go](https://go.dev/doc/install)):
-   ```sh
-   go install github.com/lc/gau/v2/cmd/gau@latest
-   go install github.com/tomnomnom/waybackurls@latest
-   go install github.com/projectdiscovery/katana/cmd/katana@latest
-   go install github.com/jaeles-project/gospider@latest
-   go install github.com/lc/subjs@latest
-   ```
+```sh
+# Linux
+wget https://go.dev/dl/go1.22.0.linux-amd64.tar.gz
+sudo tar -C /usr/local -xzf go1.22.0.linux-amd64.tar.gz
+export PATH=$PATH:/usr/local/go/bin
+echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.bashrc
 
-4. Install optional Python tool:
-   ```sh
-   pip install waymore
-   ```
+# macOS (with Homebrew)
+brew install go
+```
+
+Verify Go is working:
+
+```sh
+go version
+```
+
+Make sure your Go bin directory is in PATH so installed tools are accessible:
+
+```sh
+export PATH=$PATH:$(go env GOPATH)/bin
+echo 'export PATH=$PATH:$(go env GOPATH)/bin' >> ~/.bashrc
+source ~/.bashrc
+```
+
+---
+
+### 2. Install the Go tools
+
+```sh
+go install github.com/lc/gau/v2/cmd/gau@latest
+go install github.com/tomnomnom/waybackurls@latest
+go install github.com/projectdiscovery/katana/cmd/katana@latest
+go install github.com/jaeles-project/gospider@latest
+go install github.com/lc/subjs@latest
+```
+
+Verify each one works:
+
+```sh
+gau --version
+waybackurls --version
+katana -version
+gospider --version
+subjs --version
+```
+
+---
+
+### 3. Install the optional Python tool
+
+```sh
+pip install waymore
+```
+
+---
+
+### 4. Clone this repository
+
+```sh
+git clone https://github.com/ShrekBytes/GetParamURLs.git
+cd GetParamURLs
+```
 
 ---
 
 ## Usage
 
-### Basic
+### Quickstart — run everything
 
-```sh
-python3 collect.py example.com
-```
-
-### Include subdomains
+This is the recommended command for most targets. Runs all three phases with subdomains included:
 
 ```sh
 python3 collect.py example.com --subs
 ```
 
-### Authenticated target (behind login)
+Expected output:
 
-```sh
-python3 collect.py example.com --cookie "session=abc123; user=xyz"
+```
+[*] Tool Availability Check
+[+] gau             found
+[+] waybackurls     found
+[+] katana          found
+[+] gospider        found
+[+] subjs           found
+[+] waymore         found
+
+[*] Phase 1 — Historical URL Collection
+[*] Running gau --subs...
+[+] gau: 18400 URLs
+[*] Running waybackurls...
+[+] waybackurls: 12300 URLs
+[*] Running waymore...
+[+] waymore: 9800 URLs
+[+] Historical merged: 24100 unique URLs
+
+[*] Phase 2 — Active Crawling
+[*] Running katana (depth=2, JS parsing enabled)...
+[+] katana: 3200 GET URLs, 47 POST endpoints
+[*] Running gospider (follows sitemap + robots.txt)...
+[+] gospider: 840 additional URLs
+
+[*] Phase 3 — JavaScript Endpoint Extraction
+[+] Found 310 JS files to analyse
+[+] JS extraction: 620 endpoints found
+
+[*] Filtering Pipeline
+[+] After scope filter:      26800
+[+] After param filter:      8400
+[+] After MIME filter:       7100
+[+] After deduplication:     3200  →  example.com.txt
+[+] POST endpoints:          47    →  example.com_post.jsonl
+
+  GET URLs        →  example.com.txt           (3200 URLs)
+  POST endpoints  →  example.com_post.jsonl    (47 endpoints)
+
+  Next step:
+  python3 scanner.py example.com.txt
 ```
 
-### Deeper crawl
+---
 
+### Common scenarios
+
+**Basic — no subdomains, default depth:**
 ```sh
-python3 collect.py example.com --depth 4
+python3 collect.py example.com
 ```
 
-### Historical sources only (no active crawling)
+**Include subdomains (recommended for most bug bounty scopes):**
+```sh
+python3 collect.py example.com --subs
+```
 
+**Authenticated target:**
+
+Log into the target in your browser, open DevTools → Application → Cookies, copy the relevant cookie values, then pass them in:
+
+```sh
+python3 collect.py example.com --subs --cookie "session=abc123; user=xyz"
+```
+
+**Deeper crawl — more coverage, takes longer:**
+```sh
+python3 collect.py example.com --subs --depth 4
+```
+
+**Historical only — fastest, zero active requests to the target:**
 ```sh
 python3 collect.py example.com --no-active --no-js
 ```
 
-### Keep intermediate files for debugging
-
+**Debug mode — keep all intermediate files to inspect each phase:**
 ```sh
 python3 collect.py example.com --keep-tmp
 ```
 
-### All options
+**Full command with all options:**
+```sh
+python3 collect.py example.com \
+  --subs \
+  --depth 3 \
+  --cookie "session=abc123; csrf=xyz" \
+  --keep-tmp
+```
+
+---
+
+### All flags
 
 ```
 positional arguments:
@@ -162,24 +270,48 @@ options:
 
 ## Output Files
 
-| File | Contents | Next step |
+After running, you get two files:
+
+| File | Contents | Use for |
 |---|---|---|
-| `example.com.txt` | Deduplicated GET URLs with query params | Feed into scanner |
-| `example.com_post.jsonl` | POST endpoints with parameter names | Manual testing or scanner POST mode |
+| `example.com.txt` | Deduplicated GET URLs with query params, one per line | Feed into scanner |
+| `example.com_post.jsonl` | POST endpoints with parameter names, one JSON object per line | Manual testing or scanner POST mode |
 
-The domain prefix matches your input argument. Running `collect.py example.com` produces `example.com.txt` and `example.com_post.jsonl`.
+### GET URLs — `example.com.txt`
 
-The POST endpoints file contains one JSON object per line:
-```json
-{"url": "https://example.com/login", "method": "POST", "params": ["username", "password", "csrf"], "source": "katana_form"}
-{"url": "https://example.com/search", "method": "POST", "params": ["q", "filter"], "source": "katana_form"}
+Plain text, one URL per line:
+
+```
+https://example.com/search?q=hello&page=1
+https://example.com/api/user?id=42&format=json
+https://example.com/filter?category=shoes&sort=price&order=asc
 ```
 
-### Feeding into the scanner
+### POST endpoints — `example.com_post.jsonl`
+
+One JSON object per line. Each entry contains the endpoint URL, method, and the form field names extracted from the HTML form:
+
+```json
+{"url": "https://example.com/login", "method": "POST", "params": ["username", "password", "csrf_token"], "source": "katana_form"}
+{"url": "https://example.com/search", "method": "POST", "params": ["q", "filter", "page"], "source": "katana_form"}
+{"url": "https://example.com/profile/update", "method": "POST", "params": ["name", "email", "bio"], "source": "katana_form"}
+```
+
+Use this file to manually craft POST requests in Burp Suite, injecting probe values into each listed parameter.
+
+---
+
+## Full workflow with the scanner
 
 ```sh
-python3 collect.py example.com
+# Step 1 — collect and filter URLs
+python3 collect.py example.com --subs
+
+# Step 2 — scan GET URLs for reflection points and inject blind payloads
 python3 scanner.py example.com.txt
+
+# Step 3 — if any URLs failed due to network issues, re-run the failed list
+python3 scanner.py example.com_failed.txt
 ```
 
 ---
