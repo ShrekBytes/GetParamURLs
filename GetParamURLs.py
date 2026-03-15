@@ -59,7 +59,7 @@ TOOLS = {
     "waybackurls":  ("required",    "go install github.com/tomnomnom/waybackurls@latest"),
     "katana":       ("recommended", "go install github.com/projectdiscovery/katana/cmd/katana@latest"),
     "gospider":     ("optional",    "go install github.com/jaeles-project/gospider@latest"),
-    "subjs":        ("optional",    "go install github.com/lc/subjs@latest"),
+    "linkfinder":   ("optional",    "git clone https://github.com/GerbenJavado/LinkFinder.git && cd LinkFinder && pip install -r requirements.txt && python3 setup.py install"),
     "waymore":      ("optional",    "pip install waymore"),
 }
 
@@ -268,84 +268,76 @@ def collect_active(domain: str, tmpdir: str, tools: dict,
 def collect_js_endpoints(domain: str, tmpdir: str, tools: dict,
                           all_urls_so_far: str) -> str:
     """
-    Extract endpoints from JavaScript files found during crawling.
-    Uses subjs to collect JS URLs, then parses them for hidden API paths.
+    Extract endpoints from JavaScript files using LinkFinder.
+    LinkFinder fetches JS files and extracts paths/endpoints via battle-tested
+    regex patterns tuned for real-world minified/bundled JS.
     Returns path to file containing extracted endpoints.
     """
     head("Phase 3 — JavaScript Endpoint Extraction")
 
     js_endpoints = f"{tmpdir}/js_endpoints.txt"
+    open(js_endpoints, "w").close()  # ensure file exists even if skipped
 
-    if not tools.get("subjs"):
-        warn("subjs not available — skipping JS extraction")
+    if not tools.get("linkfinder"):
+        warn("linkfinder not available — skipping JS extraction")
+        warn("Install: git clone https://github.com/GerbenJavado/LinkFinder.git")
+        warn("         cd LinkFinder && pip install -r requirements.txt && python3 setup.py install")
         return js_endpoints
 
-    # Step 1: Collect JS file URLs from all gathered URLs
+    extracted_count = 0
+
+    # ── Mode 1: Domain crawl (-d flag) ───────────────────────────
+    # LinkFinder spiders the domain, finds all JS files automatically,
+    # and extracts endpoints from all of them in one pass.
+    info(f"Running linkfinder domain crawl on https://{domain}...")
+    lf_domain_out = f"{tmpdir}/lf_domain.txt"
+    run(f"linkfinder -i https://{domain} -d -o cli > {lf_domain_out} 2>/dev/null")
+    extracted_count += _count_lines(lf_domain_out)
+    ok(f"LinkFinder domain crawl: {_count_lines(lf_domain_out)} endpoints")
+
+    # ── Mode 2: Per-JS-file from collected URLs ───────────────────
+    # Pull JS file URLs from everything collected so far and run
+    # LinkFinder against each one individually — catches JS files
+    # that the domain crawl may have missed (e.g. on CDN subdomains).
     js_urls_file = f"{tmpdir}/js_urls.txt"
-    info("Extracting JS file URLs from collected URLs...")
-    run(f"grep -iE '\\.js(\\?|$)' {all_urls_so_far} > {js_urls_file} 2>/dev/null")
+    run(f"grep -iE '\\.js(\\?|$)' {all_urls_so_far} 2>/dev/null | sort -u > {js_urls_file}")
+    js_url_count = _count_lines(js_urls_file)
 
-    # Also discover JS files via subjs (feeds domain URLs in)
-    subjs_out = f"{tmpdir}/subjs_raw.txt"
-    info("Running subjs to discover additional JS files...")
-    run(f"echo 'https://{domain}' | subjs -s > {subjs_out}")
+    if js_url_count:
+        info(f"Running linkfinder on {js_url_count} individual JS files...")
+        lf_perfile_out = f"{tmpdir}/lf_perfile.txt"
+        open(lf_perfile_out, "w").close()
 
-    # Merge JS URL sources
-    run(f"cat {js_urls_file} {subjs_out} 2>/dev/null | sort -u > {tmpdir}/js_all_urls.txt")
-    js_url_count = _count_lines(f"{tmpdir}/js_all_urls.txt")
-    info(f"Found {js_url_count} JS files to analyse")
-
-    # Step 2: Parse JS files for endpoints using regex patterns
-    # These patterns catch fetch(), axios, $.ajax, href assignments, etc.
-    endpoint_patterns = [
-        # fetch("...") / fetch('...')
-        r'''fetch\s*\(\s*['"`]([^'"`\s]+)['"`]''',
-        # axios.get/post/put/delete("...")
-        r'''axios\.[a-z]+\s*\(\s*['"`]([^'"`\s]+)['"`]''',
-        # $.ajax({url: "..."})
-        r'''url\s*:\s*['"`]([/][^'"`\s]+)['"`]''',
-        # XMLHttpRequest .open("GET", "...")
-        r'''\.open\s*\(\s*['"`][A-Z]+['"`]\s*,\s*['"`]([^'"`\s]+)['"`]''',
-        # href="/api/..." or action="/submit"
-        r'''(?:href|action|src)\s*=\s*['"`]([/][^'"`\s]+)['"`]''',
-        # "/api/v1/something" — API path patterns
-        r'''['"`](/(?:api|v\d|rest|graphql|internal|admin)[^'"`\s]*)['"`]''',
-    ]
-    combined_pattern = re.compile("|".join(f"(?:{p})" for p in endpoint_patterns))
-
-    extracted = set()
-    import urllib.request
-
-    for js_url in _read_lines(f"{tmpdir}/js_all_urls.txt"):
-        if not js_url.startswith("http"):
-            continue
-        try:
-            req = urllib.request.Request(
-                js_url,
-                headers={"User-Agent": "Mozilla/5.0"}
+        for js_url in _read_lines(js_urls_file):
+            if not js_url.startswith("http"):
+                continue
+            run_append(
+                f"linkfinder -i '{js_url}' -o cli 2>/dev/null",
+                lf_perfile_out
             )
-            with urllib.request.urlopen(req, timeout=10) as resp:
-                js_content = resp.read().decode("utf-8", errors="ignore")
-            for match in combined_pattern.finditer(js_content):
-                for group in match.groups():
-                    if group:
-                        # Convert relative paths to absolute URLs
-                        if group.startswith("/"):
-                            parsed = urlparse(js_url)
-                            full = f"{parsed.scheme}://{parsed.netloc}{group}"
-                        elif group.startswith("http"):
-                            full = group
-                        else:
-                            continue
-                        extracted.add(full)
-        except Exception:
-            continue
 
-    with open(js_endpoints, "w") as f:
-        for ep in sorted(extracted):
-            f.write(ep + "\n")
+        per_count = _count_lines(lf_perfile_out)
+        extracted_count += per_count
+        ok(f"LinkFinder per-file: {per_count} additional endpoints")
 
-    ok(f"JS extraction: {len(extracted)} endpoints found")
+    # ── Merge and convert to absolute URLs ───────────────────────
+    # LinkFinder outputs relative paths like /api/v1/user — convert
+    # them to full URLs so the filtering pipeline handles them correctly.
+    seen = set()
+    with open(js_endpoints, "w") as out:
+        for path in _read_lines(f"{tmpdir}/lf_domain.txt"):
+            full = _to_absolute(path, domain)
+            if full and full not in seen:
+                seen.add(full)
+                out.write(full + "\n")
+        if js_url_count:
+            for path in _read_lines(f"{tmpdir}/lf_perfile.txt"):
+                full = _to_absolute(path, domain)
+                if full and full not in seen:
+                    seen.add(full)
+                    out.write(full + "\n")
+
+    ok(f"JS extraction total: {len(seen)} unique endpoints found")
     return js_endpoints
 
 
@@ -480,6 +472,20 @@ def _extract_post_params(body: str, entry: dict) -> list:
             if "=" in pair:
                 params.append(pair.split("=")[0])
     return params
+
+
+def _to_absolute(path: str, domain: str) -> str:
+    """Convert a relative path from LinkFinder to an absolute URL."""
+    path = path.strip()
+    if not path:
+        return ""
+    if path.startswith("http://") or path.startswith("https://"):
+        return path
+    if path.startswith("//"):
+        return "https:" + path
+    if path.startswith("/"):
+        return f"https://{domain}{path}"
+    return ""  # ignore relative paths like ../foo or bare filenames
 
 
 def _merge_files(*paths: str, output: str):
