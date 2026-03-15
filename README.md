@@ -21,7 +21,7 @@ GetParamURLs is a Python-based URL collection and filtering pipeline for bug bou
 
 - **Historical collection** via `gau` (Wayback, CommonCrawl, OTX, URLScan), `waybackurls`, and `waymore`
 - **Active crawling** via `katana` (JS-rendered, follows `fetch()`/XHR calls) and `gospider` (follows `robots.txt` + `sitemap.xml`)
-- **JavaScript endpoint extraction** — fetches all linked `.js` files and applies regex patterns for `fetch()`, `axios`, `$.ajax`, XHR `.open()`, and embedded API paths
+- **JavaScript endpoint extraction** via `LinkFinder` — fetches every linked JS file and extracts API paths, route definitions, and endpoint strings using battle-tested regex patterns tuned for minified and bundled JS
 - **POST form extraction** — katana detects HTML forms with `method="post"` and extracts field names into a separate structured file
 - **Scope filtering** — removes URLs outside the target domain before any further processing
 - **MIME type filtering** — strips URLs pointing to images, fonts, media, scripts, stylesheets, and other non-interesting static files
@@ -44,7 +44,7 @@ Queries `gau`, `waybackurls`, and `waymore` for archived URLs. These sources cov
 `katana` actively spiders the live site, renders JavaScript, and parses `fetch()`/XHR calls to discover endpoints that were never archived. It also detects HTML forms and records their method and input field names. `gospider` adds coverage via `robots.txt` and `sitemap.xml`.
 
 **Phase 3 — JavaScript endpoint extraction**
-Collects all `.js` file URLs found during the previous phases, fetches each one, and applies regex patterns to extract API paths, route definitions, and endpoint strings embedded in the code.
+Runs `linkfinder` in two passes: first a full domain crawl (`-d` flag) where LinkFinder discovers and parses all JS files automatically, then a second pass against individual JS file URLs collected during phases 1 and 2 to catch files on CDN subdomains or paths the domain crawl missed. All extracted paths are converted to absolute URLs before entering the filtering pipeline.
 
 After collection, all URLs pass through a filtering pipeline: scope check → query param filter → MIME filter → deduplication.
 
@@ -65,10 +65,10 @@ After collection, all URLs pass through a filtering pipeline: scope check → qu
 
 ### Optional but valuable
 
+- **LinkFinder** — [github.com/GerbenJavado/LinkFinder](https://github.com/GerbenJavado/LinkFinder)
+  Required for Phase 3 JS endpoint extraction. Fetches JS files and extracts hidden API paths and endpoints using regex patterns specifically tuned for real-world minified JS. Without it the JS extraction phase is skipped entirely.
 - **gospider** — [github.com/jaeles-project/gospider](https://github.com/jaeles-project/gospider)
   Adds sitemap and robots.txt coverage.
-- **subjs** — [github.com/lc/subjs](https://github.com/lc/subjs)
-  Discovers additional JS files for endpoint extraction.
 - **waymore** — [github.com/xnl-h4ck3r/waymore](https://github.com/xnl-h4ck3r/waymore)
   More thorough archive coverage than gau alone.
 
@@ -80,7 +80,7 @@ The script checks all tools on startup and tells you exactly what is missing and
 
 ### 1. Install Go
 
-All the external tools are written in Go. If you don't have Go installed:
+All the Go-based tools require Go. If you don't have it:
 
 ```sh
 # Linux
@@ -116,7 +116,6 @@ go install github.com/lc/gau/v2/cmd/gau@latest
 go install github.com/tomnomnom/waybackurls@latest
 go install github.com/projectdiscovery/katana/cmd/katana@latest
 go install github.com/jaeles-project/gospider@latest
-go install github.com/lc/subjs@latest
 ```
 
 Verify each one works:
@@ -126,12 +125,31 @@ gau --version
 waybackurls --version
 katana -version
 gospider --version
-subjs --version
 ```
 
 ---
 
-### 3. Install the optional Python tool
+### 3. Install LinkFinder
+
+LinkFinder is a Python tool installed from source:
+
+```sh
+git clone https://github.com/GerbenJavado/LinkFinder.git
+cd LinkFinder
+pip install -r requirements.txt
+python3 setup.py install
+cd ..
+```
+
+Verify it works:
+
+```sh
+linkfinder --help
+```
+
+---
+
+### 4. Install optional Python tools
 
 ```sh
 pip install waymore
@@ -139,7 +157,7 @@ pip install waymore
 
 ---
 
-### 4. Clone this repository
+### 5. Clone this repository
 
 ```sh
 git clone https://github.com/ShrekBytes/GetParamURLs.git
@@ -166,7 +184,7 @@ Expected output:
 [+] waybackurls     found
 [+] katana          found
 [+] gospider        found
-[+] subjs           found
+[+] linkfinder      found
 [+] waymore         found
 
 [*] Phase 1 — Historical URL Collection
@@ -185,8 +203,11 @@ Expected output:
 [+] gospider: 840 additional URLs
 
 [*] Phase 3 — JavaScript Endpoint Extraction
-[+] Found 310 JS files to analyse
-[+] JS extraction: 620 endpoints found
+[*] Running linkfinder domain crawl on https://example.com...
+[+] LinkFinder domain crawl: 480 endpoints
+[*] Running linkfinder on 310 individual JS files...
+[+] LinkFinder per-file: 290 additional endpoints
+[+] JS extraction total: 620 unique endpoints found
 
 [*] Filtering Pipeline
 [+] After scope filter:      26800
@@ -261,7 +282,7 @@ options:
   --depth N          Crawl depth for active crawlers (default: 2)
   --cookie COOKIE    Cookie for authenticated crawling e.g. "session=abc"
   --no-active        Skip active crawling (katana, gospider)
-  --no-js            Skip JavaScript endpoint extraction
+  --no-js            Skip JavaScript endpoint extraction (LinkFinder)
   --no-historical    Skip historical sources (gau, waybackurls, waymore)
   --keep-tmp         Keep intermediate files for debugging
 ```
